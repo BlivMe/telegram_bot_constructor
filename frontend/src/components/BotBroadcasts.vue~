@@ -1,0 +1,218 @@
+<template>
+  <div class="broadcasts-page">
+    <h1>Рассылки</h1>
+
+    <button class="create-btn" @click="openModal(null)">+ Новая рассылка</button>
+
+    <div v-if="broadcasts.length" class="broadcasts-list">
+      <div
+        class="broadcast-item"
+        v-for="broadcast in broadcasts"
+        :key="broadcast.id"
+      >
+        <div class="broadcast-header">
+          <div class="broadcast-info" @click="openModal(broadcast)">
+            <p><strong>Бот:</strong> {{ broadcast.bot_name || 'неизвестно' }}</p>
+            <p><strong>Сообщение:</strong> {{ broadcast.message.slice(0, 50) }}...</p>
+            <p><strong>Дата:</strong> {{ formatDate(broadcast.creationdate) }}</p>
+          </div>
+          <button class="delete-btn" @click="deleteBroadcast(broadcast.id)">🗑</button>
+        </div>
+      </div>
+    </div>
+    <p v-else>Рассылок пока нет.</p>
+
+    <div v-if="showModal" class="modal-overlay">
+      <div class="modal">
+        <h2>{{ editingBroadcast ? 'Редактировать' : 'Создать' }} рассылку</h2>
+
+        <label>Бот:</label>
+        <select v-model="form.bot_id">
+          <option disabled value="">Выберите...</option>
+          <option v-for="bot in bots" :key="bot.id" :value="bot.id">
+            {{ bot.name }}
+          </option>
+        </select>
+
+        <label>Сообщение:</label>
+        <textarea v-model="form.message" rows="4" placeholder="Введите текст..." />
+
+        <label>Изображение (необязательно):</label>
+        <input type="file" @change="handleImageUpload" accept="image/*" />
+
+        <div class="modal-actions">
+          <button @click="submitBroadcast">Отправить</button>
+          <button @click="closeModal">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from "@/axios";
+
+export default {
+  name: "BotBroadcasts",
+  data() {
+    return {
+      broadcasts: [],
+      bots: [],
+      showModal: false,
+      editingBroadcast: null,
+      form: {
+        bot_id: "",
+        message: "",
+        image: null
+      }
+    };
+  },
+  created() {
+    this.fetchBroadcasts();
+    this.fetchBots();
+  },
+  methods: {
+    async fetchBroadcasts() {
+      try {
+        const companyId = localStorage.getItem("company_id");
+        const res = await axios.get("/api/bots/broadcasts/", {
+          params: { company_id: companyId }
+        });
+        this.broadcasts = res.data;
+      } catch (error) {
+        console.error("Ошибка при загрузке рассылок:", error);
+      }
+    },
+    async fetchBots() {
+      try {
+        const companyId = localStorage.getItem("company_id");
+        const { data } = await axios.get("/api/core/user_bots/", {
+          params: { company_id: companyId }
+        });
+        this.bots = data;
+      } catch (error) {
+        console.error("Ошибка при загрузке ботов:", error);
+      }
+    },
+    formatDate(date) {
+      return new Date(date).toLocaleString();
+    },
+    openModal(broadcast) {
+      this.showModal = true;
+      this.editingBroadcast = broadcast;
+      if (broadcast) {
+        this.form.bot_id = broadcast.bot_id;
+        this.form.message = broadcast.message;
+      } else {
+        this.form.bot_id = "";
+        this.form.message = "";
+        this.form.image = null;
+      }
+    },
+    closeModal() {
+      this.showModal = false;
+    },
+    handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (file) this.form.image = file;
+    },
+    async submitBroadcast() {
+      const formData = new FormData();
+      formData.append("bot_id", this.form.bot_id);
+      formData.append("message", this.form.message);
+      if (this.form.image) formData.append("image", this.form.image);
+      formData.append("company_id", localStorage.getItem("company_id"));
+
+      try {
+        await axios.post("/api/bots/broadcasts/", formData);
+        this.closeModal();
+        this.fetchBroadcasts();
+      } catch (error) {
+        console.error("Ошибка при отправке рассылки:", error);
+        alert("Не удалось отправить рассылку");
+      }
+    },
+    async deleteBroadcast(id) {
+      if (!confirm("Удалить эту рассылку?")) return;
+      try {
+        await axios.delete(`/api/bots/broadcasts/${id}/`);
+        this.broadcasts = this.broadcasts.filter(b => b.id !== id);
+      } catch (error) {
+        console.error("Ошибка при удалении рассылки:", error);
+        alert("Не удалось удалить рассылку");
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.broadcasts-page {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+.broadcasts-list {
+  margin-top: 20px;
+  display: grid;
+  gap: 15px;
+}
+.broadcast-item {
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+.broadcast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.broadcast-info {
+  cursor: pointer;
+}
+.delete-btn {
+  background: none;
+  border: none;
+  color: #d00;
+  font-size: 18px;
+  cursor: pointer;
+}
+.create-btn {
+  background: #535af4;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+.modal textarea {
+  resize: none;
+}
+</style>
