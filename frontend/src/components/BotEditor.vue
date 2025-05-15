@@ -347,6 +347,15 @@ export default {
   },
 
   created() {
+    const companyId = localStorage.getItem("company_id")
+    const userType = localStorage.getItem("user_type")
+
+    if (!companyId || !userType) {
+      alert("Доступ запрещён. Пожалуйста, авторизуйтесь.")
+      this.$router.push("/login")
+      return
+    }
+
     const botId = parseInt(this.$route.params.id)
     this.fetchStructure(botId)
     this.fetchToken(botId)
