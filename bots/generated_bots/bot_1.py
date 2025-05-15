@@ -18,7 +18,7 @@ block_map = {b["id"]: b for b in BLOCKS}
 user_states = {}
 user_data = {}
 
-bot = Bot(token="7726231565:AAGrvLRSHagW4Jmc3zOSzc8T7p7rDDBcLsQ")
+bot = Bot(token="token")
 dp = Dispatcher(storage=MemoryStorage())
 
 class DataCapture(StatesGroup):
