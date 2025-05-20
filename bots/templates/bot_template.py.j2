@@ -72,6 +72,9 @@ async def handle_block(message: types.Message, block_id: int, state: FSMContext)
 
     elif block["type"] == "data_capture":
         await state.set_state(DataCapture.filling)
+        text = block.get("content", "").strip()
+        if text:
+            await message.answer(text)
         await send_data_capture_menu(message, block, user_data.get(user_id, {}), state)
 
 async def sync_client_with_crm(data: dict):
